@@ -160,160 +160,151 @@ class _CameraViewState extends State<CameraView> {
     }
 
     return SingleChildScrollView(
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-                height: size.height - kToolbarHeight,
-                child: CameraPreview(controller!)),
+      child: Column(children: [
+        AspectRatio(aspectRatio: 16 / 9, child: CameraPreview(controller!)),
+        Material(
+          child: DropdownButton<CameraDescription>(
+            value: cameraDescription,
+            icon: const Icon(Icons.arrow_downward),
+            iconSize: 24,
+            elevation: 16,
+            onChanged: (CameraDescription? newValue) async {
+              if (controller != null) {
+                await controller!.dispose();
+              }
+              setState(() {
+                controller = null;
+                cameraDescription = newValue!;
+              });
+
+              await initCam(newValue!);
+            },
+            items: widget.cameras
+                .map<DropdownMenuItem<CameraDescription>>((value) {
+              return DropdownMenuItem<CameraDescription>(
+                value: value,
+                child: Text('${value.name}: ${value.lensDirection}'),
+              );
+            }).toList(),
           ),
-          SizedBox(width: 20),
-          Column(children: [
-            Material(
-              child: DropdownButton<CameraDescription>(
-                value: cameraDescription,
-                icon: const Icon(Icons.arrow_downward),
-                iconSize: 24,
-                elevation: 16,
-                onChanged: (CameraDescription? newValue) async {
-                  if (controller != null) {
-                    await controller!.dispose();
-                  }
-                  setState(() {
-                    controller = null;
-                    cameraDescription = newValue!;
-                  });
+        ),
+        if (!recording)
+          ElevatedButton(
+            onPressed: controller == null
+                ? null
+                : () async {
+                    await controller!.startVideoRecording();
+                    setState(() {
+                      recording = true;
+                    });
+                  },
+            child: Text('Record video'),
+          ),
+        if (recording)
+          ElevatedButton(
+            onPressed: () async {
+              final file = await controller!.stopVideoRecording();
+              final bytes = await file.readAsBytes();
+              final uri =
+                  Uri.dataFromBytes(bytes, mimeType: 'video/webm;codecs=vp8');
 
-                  await initCam(newValue!);
-                },
-                items: widget.cameras
-                    .map<DropdownMenuItem<CameraDescription>>((value) {
-                  return DropdownMenuItem<CameraDescription>(
-                    value: value,
-                    child: Text('${value.name}: ${value.lensDirection}'),
-                  );
-                }).toList(),
-              ),
-            ),
-            if (!recording)
-              ElevatedButton(
-                onPressed: controller == null
-                    ? null
-                    : () async {
-                        await controller!.startVideoRecording();
-                        setState(() {
-                          recording = true;
-                        });
-                      },
-                child: Text('Record video'),
-              ),
-            if (recording)
-              ElevatedButton(
-                onPressed: () async {
-                  final file = await controller!.stopVideoRecording();
+              final link = AnchorElement(href: uri.toString());
+              link.download = 'recording.webm';
+              link.click();
+              link.remove();
+              setState(() {
+                recording = false;
+              });
+            },
+            child: Text('Stop recording'),
+          ),
+        SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: controller == null
+              ? null
+              : () async {
+                  final file = await controller!.takePicture();
                   final bytes = await file.readAsBytes();
-                  final uri = Uri.dataFromBytes(bytes,
-                      mimeType: 'video/webm;codecs=vp8');
 
-                  final link = AnchorElement(href: uri.toString());
-                  link.download = 'recording.webm';
+                  final link = AnchorElement(
+                      href: Uri.dataFromBytes(bytes, mimeType: 'image/png')
+                          .toString());
+
+                  link.download = 'picture.png';
                   link.click();
                   link.remove();
-                  setState(() {
-                    recording = false;
-                  });
                 },
-                child: Text('Stop recording'),
-              ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: controller == null
-                  ? null
-                  : () async {
-                      final file = await controller!.takePicture();
-                      final bytes = await file.readAsBytes();
-
-                      final link = AnchorElement(
-                          href: Uri.dataFromBytes(bytes, mimeType: 'image/png')
-                              .toString());
-
-                      link.download = 'picture.png';
-                      link.click();
-                      link.remove();
-                    },
-              child: Text('Take picture'),
-            ),
-            SizedBox(height: 10),
-            if (!orientationLocked)
-              ElevatedButton(
-                  onPressed: () {
-                    controller!.lockCaptureOrientation();
-                    setState(() {
-                      orientationLocked = true;
-                    });
-                  },
-                  child: Text('Lock orientation')),
-            if (orientationLocked)
-              ElevatedButton(
-                  onPressed: () {
-                    controller!.unlockCaptureOrientation();
-                    setState(() {
-                      orientationLocked = false;
-                    });
-                  },
-                  child: Text('Unlock orientation')),
-            SizedBox(height: 10),
-            if (!flashLight)
-              ElevatedButton(
-                  onPressed: () {
-                    controller!.setFlashMode(FlashMode.always);
-                    setState(() {
-                      flashLight = true;
-                    });
-                  },
-                  child: Text('Turn flashlight on')),
-            if (flashLight)
-              ElevatedButton(
-                  onPressed: () {
-                    controller!.setFlashMode(FlashMode.off);
-                    setState(() {
-                      flashLight = false;
-                    });
-                  },
-                  child: Text('Turn flashlight off')),
-            SizedBox(height: 10),
-            if (zoomLevel != null && maxZoom != null)
-              Text('Zoom level: $zoomLevel/$maxZoom'),
-            if (zoomLevel != null && minZoom != null && maxZoom != null)
-              Slider(
-                value: zoomLevel!,
-                onChanged: (newValue) {
-                  setState(() {
-                    zoomLevel = newValue;
-                  });
-                  controller!.setZoomLevel(newValue);
-                },
-                min: minZoom!,
-                max: maxZoom!,
-              ),
-            if (exposure != null && maxExposure != null)
-              Text('Exposure offset: $exposure/$maxExposure'),
-            if (exposure != null && minExposure != null && maxExposure != null)
-              Slider(
-                value: exposure!,
-                onChanged: (newValue) {
-                  setState(() {
-                    exposure = newValue;
-                  });
-                  controller!.setExposureOffset(newValue);
-                },
-                min: minExposure!,
-                max: maxExposure!,
-              ),
-            SizedBox(height: 10),
-          ]),
-        ],
-      ),
+          child: Text('Take picture'),
+        ),
+        SizedBox(height: 10),
+        if (!orientationLocked)
+          ElevatedButton(
+              onPressed: () {
+                controller!.lockCaptureOrientation();
+                setState(() {
+                  orientationLocked = true;
+                });
+              },
+              child: Text('Lock orientation')),
+        if (orientationLocked)
+          ElevatedButton(
+              onPressed: () {
+                controller!.unlockCaptureOrientation();
+                setState(() {
+                  orientationLocked = false;
+                });
+              },
+              child: Text('Unlock orientation')),
+        SizedBox(height: 10),
+        if (!flashLight)
+          ElevatedButton(
+              onPressed: () {
+                controller!.setFlashMode(FlashMode.always);
+                setState(() {
+                  flashLight = true;
+                });
+              },
+              child: Text('Turn flashlight on')),
+        if (flashLight)
+          ElevatedButton(
+              onPressed: () {
+                controller!.setFlashMode(FlashMode.off);
+                setState(() {
+                  flashLight = false;
+                });
+              },
+              child: Text('Turn flashlight off')),
+        SizedBox(height: 10),
+        if (zoomLevel != null && maxZoom != null)
+          Text('Zoom level: $zoomLevel/$maxZoom'),
+        if (zoomLevel != null && minZoom != null && maxZoom != null)
+          Slider(
+            value: zoomLevel!,
+            onChanged: (newValue) {
+              setState(() {
+                zoomLevel = newValue;
+              });
+              controller!.setZoomLevel(newValue);
+            },
+            min: minZoom!,
+            max: maxZoom!,
+          ),
+        if (exposure != null && maxExposure != null)
+          Text('Exposure offset: $exposure/$maxExposure'),
+        if (exposure != null && minExposure != null && maxExposure != null)
+          Slider(
+            value: exposure!,
+            onChanged: (newValue) {
+              setState(() {
+                exposure = newValue;
+              });
+              controller!.setExposureOffset(newValue);
+            },
+            min: minExposure!,
+            max: maxExposure!,
+          ),
+        SizedBox(height: 10),
+      ]),
     );
   }
 }
