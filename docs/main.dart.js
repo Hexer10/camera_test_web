@@ -35229,6 +35229,7 @@ C.e.M(f,C.e.G(f,"transform"),"scaleX(-1)",null)
 C.e.M(f,C.e.G(f,"object-fit"),"cover",null)
 C.e.M(f,C.e.G(f,"-webkit-transform"),"scaleX(-1)",null)
 C.e.M(f,C.e.G(f,"-moz-transform"),"scaleX(-1)",null)
+c.setAttribute("playsinline","true")
 i=c
 b=a0.createElement("div")
 a0=b.style
